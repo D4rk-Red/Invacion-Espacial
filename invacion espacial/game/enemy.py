@@ -33,7 +33,7 @@ class Enemy:
         return False
 
     def move_down(self):
-        self.rect.y += 15  # Bajar solo 15 píxeles (ajustable)
+        self.rect.y += 15  # Bajar solo 15 píxeles
 
     def try_shoot(self):
         if random.random() < self.shoot_probability:
