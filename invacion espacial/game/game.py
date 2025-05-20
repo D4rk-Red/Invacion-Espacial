@@ -128,7 +128,7 @@ class Game:
             for enemy in self.enemies:
                 enemy.draw(self.screen)
         
-        # Dibujar UI
+        # Dibujar puntaje y vidas
         score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
         lives_text = self.font.render(f"Lives: {self.player.lives}", True, (255, 255, 255))
         self.screen.blit(score_text, (10, 10))
