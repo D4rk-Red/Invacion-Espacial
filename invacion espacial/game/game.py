@@ -1,42 +1,44 @@
 import pygame
 import sys
 from player import Player
-from enemy import Enemy
+from enemy import FirstEnemy, SecondEnemy
 
 class Game:
     def __init__(self):
         pygame.init()
-        self.screen_width = 800
-        self.screen_height = 600
+        self.screen_width = 900
+        self.screen_height = 700
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-        pygame.display.set_caption("Space Invaders")
+        pygame.display.set_caption("Invación Espacial")
         
         self.clock = pygame.time.Clock()
         self.fps = 60
         
-        # Crear jugador
         self.player = Player(self.screen_width // 2, self.screen_height - 70)
-        
-        # Crear enemigos
         self.enemies = []
         self.create_enemies()
         
-        # Variables del juego
         self.score = 0
         self.game_over = False
-        self.enemy_direction = 1
+        self.enemy_direction = 1  # Dirección común para todos los enemigos
+        self.enemy_speed = 2
         self.enemy_speed_increase = 0.5
         self.font = pygame.font.SysFont(None, 36)
         
-        # Temporizador para movimiento enemigo
         self.enemy_move_timer = 0
-        self.enemy_move_interval = 15  # frames
+        self.enemy_move_interval = 25  # Mayor intervalo para movimiento más lento
 
     def create_enemies(self):
-        for row in range(5): # numero de filas verticales
-            for col in range(3): # columna en horizontal 
-                enemy = Enemy(100 + row * 90, 50 + col * 75) # Posicion del enemigo y espacio entre ellos.(Espacio horizontal , Espacio vertical)
+        self.enemies = []
+        for row in range(5):
+            for col in range(3):
+                # Crear diferentes tipos de enemigos alternadamente
+                if (row + col) % 2 == 0:
+                    enemy = FirstEnemy(100 + row * 90, 50 + col * 75)
+                else:
+                    enemy = SecondEnemy(100 + row * 90, 50 + col * 75)
                 self.enemies.append(enemy)
+
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -47,13 +49,13 @@ class Game:
                 if event.key == pygame.K_SPACE and not self.game_over:
                     self.player.shoot()
                 if event.key == pygame.K_r and self.game_over:
-                    self.__init__()  # Reiniciar juego
+                    self.__init__()
 
     def update(self):
         if self.game_over:
             return
                 
-        # Movimiento del jugador
+        # Movimiento del jugador y actualización de balas
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
             self.player.move("left", self.screen_width)
@@ -66,42 +68,46 @@ class Game:
         self.enemy_move_timer += 1
         if self.enemy_move_timer >= self.enemy_move_interval:
             self.enemy_move_timer = 0
-            any_enemy_hit_edge = False  # Inicialización añadida
+            edge_hit = False
             
+        
             for enemy in self.enemies:
                 if enemy.update(self.screen_width):
-                    any_enemy_hit_edge = True
-                enemy.try_shoot()
+                    edge_hit = True
             
-            if any_enemy_hit_edge:
+            # Si algún enemigo tocó el borde, todos cambian de dirección y bajan
+            if edge_hit:
+                self.enemy_direction *= -1
                 for enemy in self.enemies:
+                    enemy.direction = self.enemy_direction
                     enemy.move_down()
         
-        # Actualizar balas enemigas
+        # Disparos enemigos y actualización de balas (ahora en cada frame)
         for enemy in self.enemies:
+            enemy.try_shoot()
             enemy.update_bullets(self.screen_height)
+            
+            # Disparos enemigos
+            for enemy in self.enemies:
+                enemy.try_shoot()
+                enemy.update_bullets(self.screen_height)
         
-        # Colisiones
         self.check_collisions()
         
-        # Condiciones de fin de juego
         if not self.enemies:
+            self.enemy_speed += self.enemy_speed_increase
             self.create_enemies()
-            for enemy in self.enemies:
-                enemy.speed += self.enemy_speed_increase
         
         for enemy in self.enemies:
             if enemy.rect.bottom >= self.player.rect.top:
                 self.game_over = True
                 break
 
-
-        
     def check_collisions(self):
-        # Balas del jugador contra enemigos
+        # Balas del jugador contra enemigos (usamos hitbox en lugar de rect)
         for bullet in self.player.bullets[:]:
             for enemy in self.enemies[:]:
-                if bullet.colliderect(enemy.rect):
+                if bullet.colliderect(enemy.hitbox):  # Cambiamos rect por hitbox
                     if bullet in self.player.bullets:
                         self.player.bullets.remove(bullet)
                     if enemy in self.enemies:
@@ -109,7 +115,7 @@ class Game:
                     self.score += 10
                     break
         
-        # Balas enemigas contra jugador
+        # Balas enemigas contra jugador (el jugador puede mantener su rect normal)
         for enemy in self.enemies:
             for bullet in enemy.bullets[:]:
                 if bullet.colliderect(self.player.rect):
@@ -120,15 +126,13 @@ class Game:
                     break
 
     def draw(self):
-        self.screen.fill((0, 0, 0))  # Fondo negro
+        self.screen.fill((0, 0, 0))
         
-        # Dibujar elementos del juego
         if not self.game_over:
             self.player.draw(self.screen)
             for enemy in self.enemies:
                 enemy.draw(self.screen)
         
-        # Dibujar puntaje y vidas
         score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
         lives_text = self.font.render(f"Lives: {self.player.lives}", True, (255, 255, 255))
         self.screen.blit(score_text, (10, 10))
